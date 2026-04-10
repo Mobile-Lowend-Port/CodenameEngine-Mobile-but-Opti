@@ -74,7 +74,7 @@ class Main extends Sprite
 		MobileUtil.initDirectory();
 		MobileUtil.getPermissions();
 		#end
-		Sys.setCwd(StorageUtil.getStorageDirectory());
+		Sys.setCwd(MobileUtil.getStorageDirectory());
 
 		// Languages folder
 		if (!MobileUtil.areAssetsCopied("assets/languages/"))
