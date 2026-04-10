@@ -42,7 +42,7 @@ import extension.androidtools.os.Build.VERSION_CODES as AndroidVersionCode;
 #end
 
 #if mobile
-import mobile.backend.MobileUtil;
+import funkin.mobile.backend.MobileUtil;
 #end
 
 using StringTools;
