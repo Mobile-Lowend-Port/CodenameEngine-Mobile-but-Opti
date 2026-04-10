@@ -47,6 +47,7 @@ class ModsFolder {
 	 * Initializes `mods` folder.
 	 */
 	public static function init() {
+		
 		if(!getModsList().contains(Options.lastLoadedMod)) {
 			if(Options.lastLoadedMod != null)
 				Logs.warn("Mod \"" + Options.lastLoadedMod + "\" not found in mods list, switching to base game!");
@@ -59,6 +60,9 @@ class ModsFolder {
 	 * @param libName
 	 */
 	public static function switchMod(mod:String) {
+		if (!FileSystem.exists(modsPath)) FileSystem.createDirectory(modsPath);
+		if (!FileSystem.exists(addonsPath)) FileSystem.createDirectory(addonsPath);
+	
 		Options.lastLoadedMod = currentModFolder = mod;
 		reloadMods();
 		if(mod == null) {
