@@ -375,6 +375,7 @@ class Controls extends FlxActionSet
 		return ControlsUtil.getPressed(this, name);
 	}
 
+	@:nullSafety(Off)
 	public function checkMobile(buttonName:String, type:String):Bool
 	{
 		if (mobileC) {
@@ -411,6 +412,7 @@ class Controls extends FlxActionSet
 	@:nullSafety(Off)
 	public var mobileC(get, never):Bool;
 
+	@:nullSafety(Off)
 	private function mobilePadPressed(keys:Array<String>):Bool
 	{
 		if (getRequestedInstance() == null)
@@ -423,6 +425,7 @@ class Controls extends FlxActionSet
 		return false;
 	}
 
+	@:nullSafety(Off)
 	private function mobilePadJustPressed(keys:Array<String>):Bool
 	{
 		if (keys != null && getRequestedInstance()?.mobileManager?.mobilePad != null)
@@ -432,6 +435,7 @@ class Controls extends FlxActionSet
 		return false;
 	}
 
+	@:nullSafety(Off)
 	private function mobilePadJustReleased(keys:Array<String>):Bool
 	{
 		if (keys != null && getRequestedInstance()?.mobileManager?.mobilePad != null)
@@ -441,6 +445,7 @@ class Controls extends FlxActionSet
 		return false;
 	}
 
+	@:nullSafety(Off)
 	private function hitboxPressed(keys:Array<String>):Bool
 	{
 		if (keys != null && getRequestedInstance()?.mobileManager?.hitbox != null)
@@ -450,6 +455,7 @@ class Controls extends FlxActionSet
 		return false;
 	}
 
+	@:nullSafety(Off)
 	private function hitboxJustPressed(keys:Array<String>):Bool
 	{
 		if (keys != null && getRequestedInstance()?.mobileManager?.hitbox != null)
@@ -459,6 +465,7 @@ class Controls extends FlxActionSet
 		return false;
 	}
 
+	@:nullSafety(Off)
 	private function hitboxJustReleased(keys:Array<String>):Bool
 	{
 		if (keys != null && getRequestedInstance()?.mobileManager?.hitbox != null)
@@ -468,10 +475,14 @@ class Controls extends FlxActionSet
 		return false;
 	}
 
+	@:nullSafety(Off)
 	public function getRequestedInstance():Dynamic
 	{
 		var localSubstate:MusicBeatSubstate = cast FlxG.state.subState;
 		var localState:MusicBeatState = cast FlxG.state;
+		if (localState == null) trace("state is null");
+		if (localSubstate == null) trace("Substate is null");
+
 		if (isInSubstate)
 			return localSubstate;
 		else
