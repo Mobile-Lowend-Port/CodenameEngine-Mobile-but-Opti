@@ -31,7 +31,7 @@ class ModsFolder {
 	/**
 	 * Path to the `addons` folder.
 	 */
-	public static var addonsPath:String = #if mobile MobileUtil.getDirectory() + #end ".0addons/";
+	public static var addonsPath:String = #if mobile MobileUtil.getDirectory() + #end "./addons/";
 
 	/**
 	 * If accessing a file as assets/data/global/LIB_mymod.hx should redirect to mymod:assets/data/global.hx

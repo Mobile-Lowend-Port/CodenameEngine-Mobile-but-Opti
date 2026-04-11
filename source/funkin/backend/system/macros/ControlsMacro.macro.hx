@@ -348,8 +348,8 @@ class ControlsMacro
 				ret: macro : Bool,
 				params: [],
 				expr: _allDevModeOnlyControls.contains(shortName) ?
-					(macro return Options.devMode && $i{internalName}.check()) :
-					(macro return $i{internalName}.check() || checkMobile($v{shortName}, $v{type})),
+					(macro return Options.devMode && ($i{internalName}.check() == true || checkMobile($v{shortName}, $v{type}) == true)) :
+					(macro return ($i{internalName}.check() == true || checkMobile($v{shortName}, $v{type}) == true)),
 				args: []
 			}),
 			pos: field.pos,
