@@ -10,8 +10,8 @@ import extension.androidtools.Settings;
 import lime.system.System;
 import lime.app.Application;
 import openfl.Assets;
-import .Bytes;
-import .Path;
+import haxe.io.Bytes;
+import haxe.io.Path;
 #if sys
 import sys.FileSystem;
 import sys.io.File;
@@ -20,7 +20,7 @@ import sys.io.File;
 using StringTools;
 
 /** 
-* @Authors MaysLastPlay, MarioMaster (MasterX-39), Dechis (dx7405)
+* @Authors ArkoseLabs, MaysLastPlay, MarioMaster (MasterX-39), Dechis (dx7405)
 * @version: 0.3.0
 **/
 
@@ -28,12 +28,11 @@ class MobileUtil {
 	public static var currentDirectory:String = null;
 	private static var useAlternativePath:Bool = false;
 	public static var sdk:Int = VERSION.SDK_INT;
+
 	/**
 	 * Get the directory for the application. (External for Android Platform and Internal for iOS Platform.)
 	 * Now with automatic fallback to Android/media path if permissions fail.
 	 */
-
-
 	public static function getDirectory():String {
 		#if android
 		var paths = [
@@ -41,9 +40,8 @@ class MobileUtil {
 			"/storage/emulated/0/Android/media/com.yoshman29.codenameengine/"
 		];
 
-		if (sdk >= 30) {
-		return paths[0];
-		}
+		if (sdk >= 30) return paths[0];
+
 		return paths[1];
 		#elseif ios
 		return System.documentsDirectory;
@@ -60,23 +58,23 @@ class MobileUtil {
 		var path = MobileUtil.getDirectory();
 
 		try {
-				if (sdk >= 30) {
-						if (!Environment.isExternalStorageManager()) {
-								Settings.requestSetting('MANAGE_APP_ALL_FILES_ACCESS_PERMISSION');
-						}
-				} else {
-						Permissions.requestPermissions(['READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE']);
+			if (sdk >= 30) {
+				if (!Environment.isExternalStorageManager()) {
+					Settings.requestSetting('MANAGE_APP_ALL_FILES_ACCESS_PERMISSION');
 				}
+			} else {
+				Permissions.requestPermissions(['READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE']);
+			}
 
-				if (!FileSystem.exists(path)) FileSystem.createDirectory(path);
+			if (!FileSystem.exists(path)) FileSystem.createDirectory(path);
 		} catch (e:Dynamic) {
-				if (!FileSystem.exists(path)) {
-						try {
-								FileSystem.createDirectory(path);
-						} catch (e2:Dynamic) {
-								NativeAPI.showMessageBox('Error', "Failed to access storage. Please check your settings and enable requied permissions.");
-						}
+			if (!FileSystem.exists(path)) {
+				try {
+					FileSystem.createDirectory(path);
+				} catch (e2:Dynamic) {
+					NativeAPI.showMessageBox('Error', "Failed to access storage. Please check your settings and enable requied permissions.");
 				}
+			}
 		}
 		#end
 	}
