@@ -33,7 +33,6 @@ import flixel.group.FlxSpriteGroup.FlxTypedSpriteGroup;
 /* Basic Mobile Stuffs */
 import mobile.*;
 import mobile.objects.FunkinHitbox;
-import mobile.objects.FunkinJoyStick;
 import mobile.objects.FunkinMobilePad;
 
 #if mobile
