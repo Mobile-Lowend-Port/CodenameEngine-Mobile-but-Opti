@@ -119,21 +119,23 @@ class MobileConfig {
 	#if MOD_SUPPORT
 	private static function setModMap(folder:String, map:Dynamic, mode:ButtonModes)
 	{
-		for (file in FileSystem.readDirectory(folder))
-		{
-			if (Path.extension(file) == 'json')
+		if (FileSystem.exists(folder) && FileSystem.isDirectory(folder)) {
+			for (file in FileSystem.readDirectory(folder))
 			{
-				file = Path.join([folder, Path.withoutDirectory(file)]);
-				var str = File.getContent(file);
-				if (mode == HITBOX) {
-					var json:CustomHitboxData = cast Json.parse(str);
-					var mapKey:String = Path.withoutDirectory(Path.withoutExtension(file));
-					map.set(mapKey, json);
-				}
-				else if (mode == ACTION || mode == DPAD) {
-					var json:MobileButtonsData = cast Json.parse(str);
-					var mapKey:String = Path.withoutDirectory(Path.withoutExtension(file));
-					map.set(mapKey, json);
+				if (Path.extension(file) == 'json')
+				{
+					file = Path.join([folder, Path.withoutDirectory(file)]);
+					var str = File.getContent(file);
+					if (mode == HITBOX) {
+						var json:CustomHitboxData = cast Json.parse(str);
+						var mapKey:String = Path.withoutDirectory(Path.withoutExtension(file));
+						map.set(mapKey, json);
+					}
+					else if (mode == ACTION || mode == DPAD) {
+						var json:MobileButtonsData = cast Json.parse(str);
+						var mapKey:String = Path.withoutDirectory(Path.withoutExtension(file));
+						map.set(mapKey, json);
+					}
 				}
 			}
 		}

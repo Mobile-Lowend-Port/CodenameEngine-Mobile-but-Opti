@@ -9,7 +9,6 @@ import extension.androidtools.Settings;
 
 import lime.system.System;
 import lime.app.Application;
-import lime.utils.Assets as LimeAssets;
 import openfl.Assets;
 import haxe.io.Bytes;
 import haxe.io.Path;
@@ -20,32 +19,14 @@ import sys.io.File;
 
 using StringTools;
 
-/**
- * @Authors ArkoseLabs, MaysLastPlay, MarioMaster (MasterX-39), Dechis (dx7405)
- * @version: 0.3.0
+/** * @Authors ArkoseLabs, MaysLastPlay, MarioMaster (MasterX-39), Dechis (dx7405)
+* @version: 0.3.0
 **/
 
 class MobileUtil {
 	public static var currentDirectory:String = null;
 	private static var useAlternativePath:Bool = false;
 	public static var sdk:Int = VERSION.SDK_INT;
-
-	/**
-	 * Resolves the correct library path for an asset.
-	 */
-	public static function getFile(file:String):String {
-		if (Assets.exists(file))
-			return file;
-
-		@:privateAccess
-		for (library in LimeAssets.libraries.keys())
-		{
-			if (Assets.exists('$library:$file') && library != 'default')
-				return '$library:$file';
-		}
-
-		return file;
-	}
 
 	/**
 	 * Get the directory for the application. (External for Android Platform and Internal for iOS Platform.)
@@ -109,14 +90,12 @@ class MobileUtil {
 		File.saveContent(savesDir + fileName + fileExt, fileData);
 	}
 
-	/**
+		/**
 	 * @param folders Optional list of specific folders (e.g. ["assets/data/"]). If null, copies all assets.
 	 */
 	public static function copyAssets(folders:Array<String> = null, onProgress:String->Int->Int->Void = null, onComplete:Void->Void = null):Void {
 		#if mobile
 		var rootTarget = getDirectory();
-		var textFilesExtensions:Array<String> = ['ini', 'txt', 'xml', 'hxs', 'hx', 'lua', 'json', 'frag', 'vert'];
-
 		try {
 			var assetList:Array<String> = Assets.list();
 
@@ -157,17 +136,25 @@ class MobileUtil {
 				if (!FileSystem.exists(directory)) FileSystem.createDirectory(directory);
 
 				if (!FileSystem.exists(fullPath)) {
-					var extension = Path.extension(cleanPath).toLowerCase();
+					var bytes:Bytes = null;
 
-					var resolvedKey = getFile(cleanPath);
+					try {
+						bytes = Assets.getBytes(assetKey);
+					} catch (e:Dynamic) {
+						try {
+							var text:String = Assets.getText(assetKey);
+							if (text != null) {
+								bytes = Bytes.ofString(text);
+							}
+						} catch (e2:Dynamic) {
+							trace('Failed to read text fallback for $assetKey: $e2');
+						}
+					}
 
-					if (textFilesExtensions.contains(extension)) {
-						var textData:String = Assets.getText(resolvedKey);
-						if (textData == null) textData = '';
-						File.saveContent(fullPath, textData);
+					if (bytes != null) {
+						File.saveBytes(fullPath, bytes);
 					} else {
-						var bytes = Assets.getBytes(resolvedKey);
-						if (bytes != null) File.saveBytes(fullPath, bytes);
+						trace('Could not extract data for asset: $assetKey');
 					}
 				}
 

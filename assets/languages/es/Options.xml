@@ -99,7 +99,7 @@
 		<str id="hitboxAlpha-name">Opacidad del Hitbox</str>
 		<str id="hitboxAlpha-desc">Cambia qué tan opaco debe ser el hitbox</str>
 
-		<str id="controlsAlpha-name">Opacidad de Controles Móviles</str>
+		<str id="controlsAlpha-name">Opacidad de Controles</str>
 		<str id="controlsAlpha-desc">Cambia qué tan opacos deben ser los controles móviles</str>
 
 		<str id="hitboxType-name">Diseño de Hitbox</str>

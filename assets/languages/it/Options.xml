@@ -104,7 +104,7 @@
 		<str id="hitboxAlpha-name">Opacità Hitbox</str>
 		<str id="hitboxAlpha-desc">Modifica l'opacità dell'hitbox</str>
 
-		<str id="controlsAlpha-name">Opacità Controlli Mobile</str>
+		<str id="controlsAlpha-name">Opacità Controlli</str>
 		<str id="controlsAlpha-desc">Modifica l'opacità dei controlli mobile</str>
 
 		<str id="hitboxType-name">Design Hitbox</str>

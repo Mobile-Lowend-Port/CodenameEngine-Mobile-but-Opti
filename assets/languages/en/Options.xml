@@ -108,7 +108,7 @@
 		<str id="hitboxAlpha-name">Hitbox Opacity</str>
 		<str id="hitboxAlpha-desc">Change how opaque the Hitbox should be</str>
 
-		<str id="controlsAlpha-name">Mobile Control Opacity</str>
+		<str id="controlsAlpha-name">Control Opacity</str>
 		<str id="controlsAlpha-desc">Change how opaque the Mobile Controls should be</str>
 
 		<str id="hitboxType-name">Hitbox Design</str>

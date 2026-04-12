@@ -98,7 +98,7 @@
 		<str id="hitboxAlpha-name">Przezroczystość Hitboxa</str>
 		<str id="hitboxAlpha-desc">Zmień stopień przezroczystości hitboxa</str>
 
-		<str id="controlsAlpha-name">Przezroczystość Przycisków Mobilnych</str>
+		<str id="controlsAlpha-name">Przezroczystość Przycisków</str>
 		<str id="controlsAlpha-desc">Zmień stopień przezroczystości sterowania mobilnego</str>
 
 		<str id="hitboxType-name">Wygląd Hitboxa</str>
