@@ -178,7 +178,7 @@ class MainMenuState extends MusicBeatState
 	override function closeSubState() {
 		super.closeSubState();
 		removeMobilePad();
-		addMobilePad('UP_DOWN', 'A_B_M_E');
+		addMobilePad('UP_DOWN', 'MAIN_MENU');
 	}
 
 	function selectItem() {
