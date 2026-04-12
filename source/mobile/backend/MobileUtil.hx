@@ -97,7 +97,7 @@ class MobileUtil {
 		#if mobile
 		var rootTarget = getDirectory();
 		try {
-			var assetList:Array<String> = Assets.list();
+			var assetList:Array<String> = lime.utils.Assets.list();
 
 			var toCopy = assetList.filter(function(assetKey) {
 				var cleanPath = assetKey;
@@ -139,10 +139,10 @@ class MobileUtil {
 					var bytes:Bytes = null;
 
 					try {
-						bytes = Assets.getBytes(assetKey);
+						bytes = lime.utils.Assets.getBytes(assetKey);
 					} catch (e:Dynamic) {
 						try {
-							var text:String = Assets.getText(assetKey);
+							var text:String = lime.utils.Assets.getText(assetKey);
 							if (text != null) {
 								bytes = Bytes.ofString(text);
 							}
