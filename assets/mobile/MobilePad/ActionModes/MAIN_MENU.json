@@ -16,14 +16,14 @@
     },
     {
       "button": "buttonM",
-      "buttonIDs": ["DEV_ACCESS", "M"],
+      "buttonIDs": ["SWITCHMOD", "M"],
       "graphic": "m",
       "position": [896, 585],
       "color": "0x00BBFF"
     },
     {
       "button": "buttonE",
-      "buttonIDs": ["SWITCHMOD", "E"],
+      "buttonIDs": ["DEV_ACCESS", "E"],
       "graphic": "e",
       "position": [770, 585],
       "color": "0xFF7D00"

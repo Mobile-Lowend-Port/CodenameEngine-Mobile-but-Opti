@@ -10,7 +10,7 @@ class EditorTreeMenu extends funkin.options.TreeMenu {
 
 	override function create() {
 		super.create();
-		if (Options.editorsResizable) UIState.setResolutionAware();
+		if (Options.editorsResizable && !funkin.backend.system.Controls.instance.mobileC) UIState.setResolutionAware();
 		FlxG.camera.fade(0xFF000000, 0.5, true);
 	}
 
