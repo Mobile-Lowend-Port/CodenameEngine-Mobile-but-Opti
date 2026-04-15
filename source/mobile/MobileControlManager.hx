@@ -24,7 +24,7 @@ class MobileControlManager implements IFlxDestroyable {
 	public function new(target:Dynamic):Void
 	{
 		curState = target;
-		trace("MobileControlManager initialized.");
+		//trace("MobileControlManager initialized.");
 	}
 
 	//for lua shit

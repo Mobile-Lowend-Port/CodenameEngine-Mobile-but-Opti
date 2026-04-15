@@ -317,6 +317,8 @@ class CharacterEditor extends UIState {
 
 		characterAnimsWindow = new CharacterAnimsWindow((FlxG.width-(500-16)-16), characterPropertiesWindow.y+224+16, character);
 		uiGroup.add(characterPropertiesWindow.animsWindow = characterAnimsWindow);
+		if (controls.mobileC)
+			characterAnimsWindow.disableMouseControl = true; //disable mouse control for mobileC
 
 		add(uiGroup);
 
@@ -335,6 +337,9 @@ class CharacterEditor extends UIState {
 		}
 
 		DiscordUtil.call("onEditorLoaded", ["Character Editor", __character]);
+
+		addMobilePad("CHARACTER_EDITOR", "CHARACTER_EDITOR");
+		addMobilePadCamera();
 	}
 
 	override function destroy() {
@@ -367,6 +372,7 @@ class CharacterEditor extends UIState {
 			}
 
 			if (FlxG.mouse.justReleasedRight) {
+				//ScreenUtil.touch?.instance?
 				var mousePos = FlxG.mouse.getScreenPosition(uiCamera);
 				closeCurrentContextMenu();
 				openContextMenu(topMenu[2].childs, null, mousePos.x, mousePos.y);
@@ -377,7 +383,7 @@ class CharacterEditor extends UIState {
 				cameraHoverDummy.cursor = HAND;
 			} else
 				cameraHoverDummy.cursor = ARROW;
-		} else if (!FlxG.mouse.pressed)
+		} else if (!FlxG.mouse.pressed && !controls.mobileC || ScreenUtil.touch.pressed && controls.mobileC)
 			currentCursor = ARROW;
 
 		charCamera.scroll.set(
@@ -396,8 +402,10 @@ class CharacterEditor extends UIState {
 
 		StageEditor.calcSpriteBounds(character);
 
-		if (Options.characterDragging)
+		if (Options.characterDragging && !controls.mobileC)
 			handleMouseOffsets();
+		if (controls.mobileC)
+			handleMobileControls();
 
 		WindowUtils.prefix = undos.unsaved ? Flags.UNDO_PREFIX : "";
 		SaveWarning.showWarning = undos.unsaved;
@@ -405,11 +413,57 @@ class CharacterEditor extends UIState {
 		super.update(elapsed);
 	}
 
+	inline function handleMobileControls() {
+		if (mobilePadJustPressed("W")) {
+			/* Will done later -ArkoseLabs
+			var scrollY = characterAnimsWindow.nextscrollY;
+			var buttonSpacing = characterAnimsWindow.buttonSpacing;
+			characterAnimsWindow.nextscrollY = CoolUtil.bound(scrollY - 1 * 12, -buttonSpacing, Math.max((characterAnimsWindow.addButton.y + 32 + (buttonSpacing*1.5)) - characterAnimsWindow.buttonCameras.height, -buttonSpacing));
+			*/
+			_animation_up(null);
+		}
+		if (mobilePadJustPressed("S"))
+			_animation_down(null);
+		if (mobilePadJustPressed("Z"))
+			_edit_undo(null);
+		if (mobilePadJustPressed("Y"))
+			_edit_redo(null);
+		if (mobilePadJustPressed("C"))
+			_edit_copy_offset(null);
+		if (mobilePadJustPressed("V"))
+			_edit_paste_offset(null);
+		if (mobilePadJustPressed("P"))
+			_animation_play(null);
+		if (mobilePadJustPressed("1"))
+			_view_zoomin(null);
+		if (mobilePadJustPressed("2"))
+			_view_zoomout(null);
+		if (mobilePadPressed("D")) {
+			if (mobilePadJustPressed("UP"))
+				_offsets_extra_up(null);
+			if (mobilePadJustPressed("DOWN"))
+				_offsets_extra_down(null);
+			if (mobilePadJustPressed("LEFT"))
+				_offsets_extra_left(null);
+			if (mobilePadJustPressed("RIGHT"))
+				_offsets_extra_right(null);
+		} else {
+			if (mobilePadJustPressed("UP"))
+				_offsets_up(null);
+			if (mobilePadJustPressed("DOWN"))
+				_offsets_down(null);
+			if (mobilePadJustPressed("LEFT"))
+				_offsets_left(null);
+			if (mobilePadJustPressed("RIGHT"))
+				_offsets_right(null);
+		}
+	}
+
 	inline function handleMouseOffsets() {
 		if (draggingCharacter) {
 			cameraHoverDummy.cursor = DRAG;
 
-			if (FlxG.mouse.justReleased) {
+			if (FlxG.mouse.justReleased && !controls.mobileC && ScreenUtil.touch.justReleased && controls.mobileC) {
 				draggingOffset.x /= character.scale.x;
 				draggingOffset.y /= character.scale.y;
 
@@ -418,16 +472,33 @@ class CharacterEditor extends UIState {
 				draggingOffset.set(0, 0); draggingCharacter = false;
 				character.extraOffset = draggingOffset;
 			} else {
-				draggingOffset.x += FlxG.mouse.deltaScreenX; draggingOffset.y += FlxG.mouse.deltaScreenY;
+				//This stuff already disabled for mobileC but why not
+				if (controls.mobileC) {
+					//draggingOffset.x += ScreenUtil.touch.instance?.deltaScreenX;
+					//draggingOffset.y += ScreenUtil.touch.instance?.deltaScreenY;
+				} else {
+					draggingOffset.x += FlxG.mouse.deltaScreenX;
+					draggingOffset.y += FlxG.mouse.deltaScreenY;
+				}
 				character.extraOffset = draggingOffset;
 			}
 		} else {
-			var point = FlxG.mouse.getWorldPosition(charCamera, _point);
-			var bounds:FlxRect = cast character.extra.get(StageEditor.exID("bounds"));
-			if (bounds.containsPoint(point)) {
-				cameraHoverDummy.cursor = #if (mac) DRAG_OPEN; #else CLICK; #end
-				if (FlxG.mouse.justPressed)
-					draggingCharacter = true;
+			if (controls.mobileC) {
+				var point = ScreenUtil.touch.instance?.getWorldPosition(charCamera, _point);
+				var bounds:FlxRect = cast character.extra.get(StageEditor.exID("bounds"));
+					if (bounds.containsPoint(point)) {
+					cameraHoverDummy.cursor = #if (mac) DRAG_OPEN; #else CLICK; #end
+					if (ScreenUtil.touch.instance?.justPressed)
+						draggingCharacter = true;
+				}
+			} else {
+				var point = FlxG.mouse.getWorldPosition(charCamera, _point);
+				var bounds:FlxRect = cast character.extra.get(StageEditor.exID("bounds"));
+				if (bounds.containsPoint(point)) {
+					cameraHoverDummy.cursor = #if (mac) DRAG_OPEN; #else CLICK; #end
+					if (FlxG.mouse.justPressed)
+						draggingCharacter = true;
+				}
 			}
 		}
 	}

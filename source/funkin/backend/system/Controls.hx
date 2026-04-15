@@ -432,8 +432,8 @@ class Controls extends FlxActionSet
 	{
 		var localSubstate:MusicBeatSubstate = MusicBeatSubstate.instance;
 		var localState:MusicBeatState = MusicBeatState.instance;
-		if (localState == null) trace("state is null");
-		if (localSubstate == null) trace("Substate is null");
+		//if (localState == null) trace("state is null");
+		//if (localSubstate == null) trace("Substate is null");
 
 		if (isInSubstate && keys != null && localSubstate?.mobileManager?.mobilePad != null) {
 			if (localSubstate.mobileManager.mobilePad.pressed(keys) == true)

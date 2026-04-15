@@ -19,6 +19,7 @@ class UIButtonList<T:UIButton> extends UIWindow {
 
 	public var dragging:Bool = false;
 	public var dragCallback:(T,Int,Int)->Void;
+	public var disableMouseControl:Bool = false;
 
 	var curMoving:T = null;
 	var curMovingInterval:Float = 0;
@@ -77,7 +78,7 @@ class UIButtonList<T:UIButton> extends UIWindow {
 					CoolUtil.fpsLerp(button.y, endButtonY + buttonOffset.y, 0.25));
 			}
 			endButtonY += button.bHeight+buttonSpacing;
-			if (button.hovered && FlxG.mouse.justPressed) curMoving = button;
+			if (button.hovered && FlxG.mouse.justPressed && !disableMouseControl) curMoving = button;
 		}
 
 		if (addButton != null)
@@ -85,7 +86,7 @@ class UIButtonList<T:UIButton> extends UIWindow {
 				(bWidth/2) - (buttonSize.x/2) + buttonOffset.x,
 				CoolUtil.fpsLerp(addButton.y, endButtonY + buttonOffset.y, 0.25));
 
-		if (curMoving != null) {
+		if (curMoving != null && !disableMouseControl) {
 			curMovingInterval += FlxG.mouse.deltaY;
 			if (Math.abs(curMovingInterval) > addButton.bHeight / 2) {
 				curMovingInterval = 999;
@@ -102,16 +103,16 @@ class UIButtonList<T:UIButton> extends UIWindow {
 		addIcon.x = addButton.x + addButton.bWidth / 2 - addIcon.width / 2;
 		addIcon.y = addButton.y + addButton.bHeight / 2 - addIcon.height / 2;
 	}
-	var nextscrollY:Float = 0;
+	public var nextscrollY:Float = 0;
 	public override function update(elapsed:Float) {
 		updateButtonsPos(elapsed);
 		dragging = Math.abs(curMovingInterval) > addButton.bHeight / 2;
 
 		super.update(elapsed);
 
-		nextscrollY = CoolUtil.bound(nextscrollY - (hovered ? FlxG.mouse.wheel : 0) * 12, -buttonSpacing, Math.max((addButton.y + 32 + (buttonSpacing*1.5)) - buttonCameras.height, -buttonSpacing));
+		if (!disableMouseControl) nextscrollY = CoolUtil.bound(nextscrollY - (hovered ? FlxG.mouse.wheel : 0) * 12, -buttonSpacing, Math.max((addButton.y + 32 + (buttonSpacing*1.5)) - buttonCameras.height, -buttonSpacing));
 
-		if (curMoving != null && dragging) {
+		if (curMoving != null && dragging && !disableMouseControl) {
 			var mousePos = FlxG.mouse.getWorldPosition(buttonCameras);
 			nextscrollY -= Math.min((bHeight - 100) - mousePos.y, 0) / 8;
 			nextscrollY += Math.min(mousePos.y - 100, 0) / 8;
