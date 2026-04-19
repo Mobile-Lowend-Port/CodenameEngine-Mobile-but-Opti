@@ -17,7 +17,7 @@ import funkin.editors.charter.CharterStrumline;
 import funkin.editors.extra.CameraHoverDummy;
 import funkin.editors.ui.UIContextMenu.UIContextMenuOption;
 import funkin.editors.ui.UIContextMenu.UIContextMenuOptionSpr;
-import funkin.editors.ui.UIState;
+import funkin.editors.ui.UIState;f
 import funkin.editors.ui.UITopMenu.UITopMenuButton;
 import haxe.Json;
 #if sys
