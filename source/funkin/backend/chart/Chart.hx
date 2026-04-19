@@ -1,4 +1,3 @@
-
 package funkin.backend.chart;
 
 import funkin.backend.chart.ChartData;
