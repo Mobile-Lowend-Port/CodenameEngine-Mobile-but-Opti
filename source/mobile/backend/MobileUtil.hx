@@ -40,26 +40,25 @@ class MobileUtil {
 			"/storage/emulated/0/Android/media/com.yoshman29.codenameengine/"
 		];
 
-		if (sdk >= 30) return haxe.io.Path.addTrailingSlash(paths[0]);
-		return haxe.io.Path.addTrailingSlash(paths[1]);
+		if (sdk >= 30) return paths[0];
+		return paths[1];
 		#elseif ios
-		return haxe.io.Path.addTrailingSlash(System.documentsDirectory);
+		return System.documentsDirectory;
 		#else
 		return Sys.getCwd();
-		return haxe.io.Path.addTrailingSlash(Sys.getCwd());
 		#end
 	}
 
-	public static function getModDir() {
+	public static inline function getModDir() {
 		#if android
 		if (funkin.options.Options.useExternal)
-			return haxe.io.Path.addTrailingSlash(Environment.getExternalStorageDirectory() + '/.CodenameEngine');
+			return Environment.getExternalStorageDirectory() + '/.CodenameEngine/';
 		else
-			return haxe.io.Path.addTrailingSlash(Environment.getExternalStorageDirectory() + '/Android/media/com.yoshman29.codenameengine');
+			return Environment.getExternalStorageDirectory() + '/Android/media/com.yoshman29.codenameengine/';
 		#elseif ios
-		return haxe.io.Path.addTrailingSlash(System.documentsDirectory);
+		return System.documentsDirectory "/";
 		#else
-		return haxe.io.Path.addTrailingSlash(Sys.getCwd());
+		return Sys.getCwd();
 		#end
 	}
 

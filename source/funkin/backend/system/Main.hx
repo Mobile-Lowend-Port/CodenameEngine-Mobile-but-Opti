@@ -72,7 +72,7 @@ class Main extends Sprite
 		//MobileUtil.initDirectory();
 		MobileUtil.getPermissions();
 		#end
-		Sys.setCwd(MobileUtil.getDirectory());
+		Sys.setCwd(haxe.io.Path.addTrailingSlash(MobileUtil.getDirectory()));
 		MobileUtil.copyAssets();
 		#end
 		CrashHandler.init();
