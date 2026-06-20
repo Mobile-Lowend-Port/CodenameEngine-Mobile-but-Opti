@@ -50,6 +50,7 @@ class PauseSubState extends MusicBeatSubstate
 	override function create()
 	{
 		super.create();
+		funkin.backend.utils.VideoPauseUtil.pauseAllForGamePause();
 
 		if (menuItems.contains("Exit to charter") && !PlayState.chartingMode)
 			menuItems.remove("Exit to charter");
@@ -170,13 +171,13 @@ class PauseSubState extends MusicBeatSubstate
 			case "Restart Song":
 				parentDisabler.reset();
 				game.registerSmoothTransition();
-				FlxG.resetState();
+				PlayState.switchToPlayState();
 			case "Change Controls":
 				persistentDraw = false;
 				removeMobilePad();
 				openSubState(new KeybindsOptions());
 			case "Change Options":
-				FlxG.switchState(new OptionsMenu((_) -> FlxG.switchState(new PlayState())));
+				FlxG.switchState(new OptionsMenu((_) -> PlayState.switchToPlayState()));
 			case "Exit to charter":
 				FlxG.switchState(new Charter(PlayState.SONG.meta.name, PlayState.difficulty, PlayState.variation, false));
 			case "Exit to menu":

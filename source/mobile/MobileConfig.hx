@@ -33,9 +33,8 @@ class MobileConfig {
 				case ACTION:
 					setDefaultMap('assets/' + mobileFolderPath + folder[0], actionModes, ACTION);
 					#if MOD_SUPPORT
-					final moddyFolder:String = (ModsFolder.currentModFolder != null
-						&& ModsFolder.currentModFolder != "default") ? '${ModsFolder.modsPath}${ModsFolder.currentModFolder}/mobile/MobilePad' : '';
-					if (FileSystem.exists(moddyFolder) && FileSystem.isDirectory(moddyFolder))
+					final moddyFolder:String = ModsFolder.getCurrentModAssetPath('mobile/MobilePad');
+					if (ModsFolder.assetPathExists(moddyFolder))
 					{
 						setModMap('$moddyFolder/ActionModes', actionModes, ACTION);
 					}
@@ -43,9 +42,8 @@ class MobileConfig {
 				case DPAD:
 					setDefaultMap('assets/' + mobileFolderPath + folder[0], dpadModes, DPAD);
 					#if MOD_SUPPORT
-					final moddyFolder:String = (ModsFolder.currentModFolder != null
-						&& ModsFolder.currentModFolder != "default") ? '${ModsFolder.modsPath}${ModsFolder.currentModFolder}/mobile/MobilePad' : '';
-					if (FileSystem.exists(moddyFolder) && FileSystem.isDirectory(moddyFolder))
+					final moddyFolder:String = ModsFolder.getCurrentModAssetPath('mobile/MobilePad');
+					if (ModsFolder.assetPathExists(moddyFolder))
 					{
 						setModMap('$moddyFolder/DPadModes', dpadModes, DPAD);
 					}
@@ -53,9 +51,8 @@ class MobileConfig {
 				case HITBOX:
 					setDefaultMap('assets/' + mobileFolderPath + folder[0], hitboxModes, HITBOX);
 					#if MOD_SUPPORT
-					final moddyFolder:String = (ModsFolder.currentModFolder != null
-						&& ModsFolder.currentModFolder != "default") ? '${ModsFolder.modsPath}${ModsFolder.currentModFolder}/mobile/Hitbox' : '';
-					if (FileSystem.exists(moddyFolder) && FileSystem.isDirectory(moddyFolder))
+					final moddyFolder:String = ModsFolder.getCurrentModAssetPath('mobile/Hitbox');
+					if (ModsFolder.assetPathExists(moddyFolder))
 					{
 						setModMap('$moddyFolder/HitboxModes', hitboxModes, HITBOX);
 					}
@@ -119,6 +116,9 @@ class MobileConfig {
 	#if MOD_SUPPORT
 	private static function setModMap(folder:String, map:Dynamic, mode:ButtonModes)
 	{
+		if (folder == null || folder == "")
+			return;
+
 		if (FileSystem.exists(folder) && FileSystem.isDirectory(folder)) {
 			for (file in FileSystem.readDirectory(folder))
 			{
@@ -137,6 +137,35 @@ class MobileConfig {
 						map.set(mapKey, json);
 					}
 				}
+			}
+			return;
+		}
+
+		var prefix = folder.endsWith("/") ? folder : folder + "/";
+		var prefixLower = prefix.toLowerCase();
+		for (asset in Assets.list()) {
+			var cleanAsset = asset;
+			var separator = cleanAsset.indexOf(":");
+			if (separator != -1)
+				cleanAsset = cleanAsset.substr(separator + 1);
+
+			if (!cleanAsset.toLowerCase().startsWith(prefixLower))
+				continue;
+
+			var fileName = cleanAsset.substr(prefix.length);
+			if (fileName.indexOf("/") != -1 || Path.extension(fileName) != "json")
+				continue;
+
+			var str = Assets.getText(asset);
+			if (mode == HITBOX) {
+				var json:CustomHitboxData = cast Json.parse(str);
+				var mapKey:String = Path.withoutDirectory(Path.withoutExtension(fileName));
+				map.set(mapKey, json);
+			}
+			else if (mode == ACTION || mode == DPAD) {
+				var json:MobileButtonsData = cast Json.parse(str);
+				var mapKey:String = Path.withoutDirectory(Path.withoutExtension(fileName));
+				map.set(mapKey, json);
 			}
 		}
 	}

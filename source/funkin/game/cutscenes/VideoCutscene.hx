@@ -78,6 +78,8 @@ class VideoCutscene extends Cutscene {
 		//cover.screenCenter();
 		//add(cover);
 
+		funkin.backend.utils.VideoPauseUtil.register(video);
+
 		bg = new FlxSprite(0, FlxG.height * 0.85).makeGraphic(1, 1, 0xFF000000);
 		bg.alpha = 0.5;
 		bg.visible = false;
@@ -205,12 +207,12 @@ class VideoCutscene extends Cutscene {
 
 	#if (hxvlc < version("2.0.0"))
 	@:dox(hide) override public function onFocus() {
-		if(FlxG.autoPause && !paused) video.resume();
+		if(FlxG.autoPause && !paused && video != null && funkin.backend.utils.VideoPauseUtil.canAutoResume()) video.resume();
 		super.onFocus();
 	}
 
 	@:dox(hide) override public function onFocusLost() {
-		if(FlxG.autoPause && !paused) video.pause();
+		if(FlxG.autoPause && !paused) funkin.backend.utils.VideoPauseUtil.pauseForFocusLost(video);
 		super.onFocusLost();
 	}
 	#end
@@ -243,6 +245,7 @@ class VideoCutscene extends Cutscene {
 	}
 
 	public override function destroy() {
+		funkin.backend.utils.VideoPauseUtil.unregister(video);
 		FlxG.cameras.remove(cutsceneCamera, true);
 		video.destroy();
 		super.destroy();

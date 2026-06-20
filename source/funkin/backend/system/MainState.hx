@@ -53,13 +53,14 @@ class MainState extends FlxState {
 			return str.substr(prefix.length).ltrim();
 
 		inline function loadLib(path:String, name:String)
-			Paths.assetsTree.addLibrary(ModsFolder.loadModLib(path, name));
+			Paths.assetsTree.addLibrary(ModsFolder.loadModLib(path, false, name));
 
 		var _lowPriorityAddons:Array<AddonInfo> = [];
 		var _highPriorityAddons:Array<AddonInfo> = [];
 		var _noPriorityAddons:Array<AddonInfo> = [];
 
-		var quick_modsPath = ModsFolder.modsPath + ModsFolder.currentModFolder;
+		var quick_modsPath = ModsFolder.getCurrentModRoot();
+		var isEmbeddedMod = ModsFolder.isEmbeddedMod(ModsFolder.currentModFolder);
 
 		// handing if the loading mod (before it's properly loaded) is a compressed mod
 		// we just need to use `Paths.assetsTree.hasCompressedLibrary` to complete valid checks for actual loaded compressed mods
@@ -72,10 +73,12 @@ class MainState extends FlxState {
 		// We are doing it like this because think about it: it's 1 for loop lol
 		// We just need to know if any of these values is true, so if only one is true and we are not close to being done in the loop, that's fine.
 		// 
-		for (ext in Flags.ALLOWED_ZIP_EXTENSIONS) {
-			if (FileSystem.exists(quick_modsPath+"."+ext)) isZipMod = true;
-			if (FileSystem.exists(quick_modsPath+"/cnemod."+ext)) isCneMod = true;
-			if (isZipMod && isCneMod) break;
+		if (!isEmbeddedMod) {
+			for (ext in Flags.ALLOWED_ZIP_EXTENSIONS) {
+				if (FileSystem.exists(quick_modsPath+"."+ext)) isZipMod = true;
+				if (FileSystem.exists(quick_modsPath+"/cnemod."+ext)) isCneMod = true;
+				if (isZipMod && isCneMod) break;
+			}
 		}
 		
 		// We get the addons folder from relative space (`./`) and then our mod's addons.
@@ -83,7 +86,7 @@ class MainState extends FlxState {
 			ModsFolder.addonsPath,
 			// So to check the mod's addons folder, we need to decompress it. Which is impossible* in this stage of the loading library process.
 			// TODO: Write a function when the library is loaded to decompress the contents and then load the libraries :)
-			( (ModsFolder.currentModFolder != null && !isZipMod) ?
+			( (ModsFolder.currentModFolder != null && !isZipMod && !isEmbeddedMod) ?
 				quick_modsPath + "/addons/" : null
 			)
 		];
@@ -165,7 +168,7 @@ class MainState extends FlxState {
 		var startState:Class<FlxState> = Flags.DISABLE_WARNING_SCREEN ? TitleState : funkin.menus.WarningState;
 
 		// In this case if the mod we just loaded a compressed modpack, we can't edit or modify files without decompressing it.
-		if (Options.devMode && Options.allowConfigWarning && !isZipMod) {
+		if (Options.devMode && Options.allowConfigWarning && !isZipMod && !isEmbeddedMod) {
 			var lib:ModsFolderLibrary;
 			for (e in Paths.assetsTree.libraries) if ((lib = cast AssetsLibraryList.getCleanLibrary(e)) is ModsFolderLibrary
 				&& lib.modName == ModsFolder.currentModFolder)

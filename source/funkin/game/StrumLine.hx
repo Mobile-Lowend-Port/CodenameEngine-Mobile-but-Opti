@@ -3,6 +3,7 @@ package funkin.game;
 import flixel.math.FlxPoint;
 import flixel.sound.FlxSound;
 import flixel.tweens.FlxTween;
+import flixel.util.FlxSort;
 import flixel.util.FlxSignal.FlxTypedSignal;
 import funkin.backend.chart.ChartData;
 import funkin.backend.scripting.events.note.*;
@@ -90,6 +91,11 @@ class StrumLine extends FlxTypedGroup<Strum> {
 	 * Extra data that can be added to the strum line.
 	**/
 	public var extra:Map<String, Dynamic> = [];
+	var __pendingNotes:Array<PendingGeneratedNote> = [];
+	var __pendingNoteIndex:Int = 0;
+	var __lastGeneratedNote:Note = null;
+	var __generatedChainPrev:Array<Note> = [];
+	var __pendingOrder:Int = 0;
 
 	private function get_ghostTapping() {
 		if (this.ghostTapping != null) return this.ghostTapping;
@@ -120,7 +126,7 @@ class StrumLine extends FlxTypedGroup<Strum> {
 		this.notes = new NoteGroup();
 
 		var v = Paths.voices(PlayState.SONG.meta.name, PlayState.difficulty, vocalPrefix);
-		vocals = vocalPrefix != "" ? FlxG.sound.load(Options.streamedVocals ? Assets.getMusic(v) : v) : new FlxSound();
+		vocals = vocalPrefix != "" && Assets.exists(v) ? FlxG.sound.load(Options.streamedVocals ? Assets.getMusic(v) : Assets.getSound(v)) : new FlxSound();
 		vocals.persist = false;
 	}
 
@@ -129,7 +135,28 @@ class StrumLine extends FlxTypedGroup<Strum> {
 	**/
 	public function generate(strumLine:ChartStrumLine, ?startTime:Float) {
 		// TODO: implement double generate call support if needed
+		if (PlayState.chartingMode) {
+			generateAll(strumLine, startTime);
+			return;
+		}
 
+		notes.members = [];
+		notes.length = 0;
+		__pendingNotes = [];
+		__pendingNoteIndex = 0;
+		__lastGeneratedNote = null;
+		__generatedChainPrev = [];
+		__pendingOrder = 0;
+
+		var initialTime = startTime == null ? 0 : startTime;
+		preparePendingNotes(strumLine, initialTime);
+		notes.preallocateLazy(__pendingNotes.length);
+		applyNotesLimit(strumLine);
+		buildQueuedNotesUpTo(initialTime + notes.limit, -1);
+		buildQueuedNotesUpTo(initialTime + Flags.PLAYSTATE_NOTE_PRELOAD_MS, Flags.PLAYSTATE_NOTE_INITIAL_BUILD_BUDGET);
+	}
+
+	function generateAll(strumLine:ChartStrumLine, ?startTime:Float) {
 		var total = 0;
 		if (strumLine.notes != null) for(note in strumLine.notes) {
 			if (startTime != null && startTime > note.time)
@@ -172,7 +199,10 @@ class StrumLine extends FlxTypedGroup<Strum> {
 			}
 		}
 		notes.sortNotes();
+		applyNotesLimit(strumLine);
+	}
 
+	function applyNotesLimit(strumLine:ChartStrumLine) {
 		var scrollSpeed = strumLine.scrollSpeed;
 		if(scrollSpeed == null) if (PlayState.instance != null) scrollSpeed = PlayState.instance.scrollSpeed;
 		if(scrollSpeed == null) scrollSpeed = 1;
@@ -182,6 +212,109 @@ class StrumLine extends FlxTypedGroup<Strum> {
 		notes.limit = limit / scrollSpeed;
 			OR
 		notes.limit = Flags.DEFAULT_NOTE_MS_LIMIT / scrollSpeed;*/
+		notes.limit = Flags.DEFAULT_NOTE_MS_LIMIT;
+	}
+
+	function preparePendingNotes(strumLine:ChartStrumLine, startTime:Float) {
+		var chainID = 0;
+		if (strumLine.notes != null) for(note in strumLine.notes) {
+			if (startTime > note.time) {
+				chainID++;
+				continue;
+			}
+
+			__pendingNotes.push({
+				noteData: note,
+				sustain: false,
+				sustainLength: 0,
+				sustainOffset: 0,
+				time: note.time,
+				chainID: chainID,
+				order: __pendingOrder++
+			});
+
+			if (note.sLen > Conductor.stepCrochet * 0.75) {
+				var len:Float = note.sLen;
+				var sustainOffset:Float = 0;
+				while (len > 10) {
+					var curLen = Math.min(len, Conductor.stepCrochet);
+					__pendingNotes.push({
+						noteData: note,
+						sustain: true,
+						sustainLength: curLen,
+						sustainOffset: sustainOffset,
+						time: note.time + sustainOffset,
+						chainID: chainID,
+						order: __pendingOrder++
+					});
+					sustainOffset += curLen;
+					len -= curLen;
+				}
+			}
+			chainID++;
+		}
+		__pendingNotes.sort(sortPendingNotes);
+	}
+
+	function createPendingNote(pending:PendingGeneratedNote):Note {
+		var prev = pending.sustain ? __generatedChainPrev[pending.chainID] : __lastGeneratedNote;
+		var note = new Note(this, pending.noteData, pending.sustain, pending.sustainLength, pending.sustainOffset, prev);
+		note.applyHudAlpha(getHudAlpha());
+
+		if (pending.sustain && note.sustainParent != null)
+			note.sustainParent.tailCount++;
+
+		__generatedChainPrev[pending.chainID] = note;
+		__lastGeneratedNote = note;
+		return note;
+	}
+
+	function getHudAlpha():Float {
+		if (extra == null || !extra.exists("hudAlpha"))
+			return 1;
+		var value:Dynamic = extra.get("hudAlpha");
+		return value == null ? 1 : cast value;
+	}
+
+	static inline function sortPendingNotes(n1:PendingGeneratedNote, n2:PendingGeneratedNote):Int {
+		if (n1.time == n2.time)
+			return n1.order - n2.order;
+		return FlxSort.byValues(FlxSort.ASCENDING, n1.time, n2.time);
+	}
+
+	function buildQueuedNotesUpTo(targetTime:Float, budget:Int):Int {
+		if (__pendingNotes == null || __pendingNoteIndex >= __pendingNotes.length)
+			return 0;
+
+		var created = 0;
+		var remainingBudget = budget;
+		while (__pendingNoteIndex < __pendingNotes.length) {
+			var pending = __pendingNotes[__pendingNoteIndex];
+			if (pending.time > targetTime)
+				break;
+			if (remainingBudget == 0)
+				break;
+
+			var insertIndex = __pendingNotes.length - __pendingNoteIndex - 1;
+			notes.setGenerated(insertIndex, createPendingNote(pending));
+			__pendingNoteIndex++;
+			created++;
+			if (remainingBudget > 0)
+				remainingBudget--;
+		}
+
+		return created;
+	}
+
+	public function updateQueuedNoteGeneration(songPos:Float, buildBudget:Int):Int {
+		if (PlayState.chartingMode || __pendingNoteIndex >= __pendingNotes.length)
+			return 0;
+
+		buildQueuedNotesUpTo(songPos + notes.limit, -1);
+		if (buildBudget == 0 || __pendingNoteIndex >= __pendingNotes.length)
+			return 0;
+
+		return buildQueuedNotesUpTo(songPos + Flags.PLAYSTATE_NOTE_PRELOAD_MS, buildBudget);
 	}
 
 	public override function update(elapsed:Float) {
@@ -484,4 +617,14 @@ class StrumLine extends FlxTypedGroup<Strum> {
 		return animSuffix == defaultAnimSuffix;
 	}
 	#end
+}
+
+private typedef PendingGeneratedNote = {
+	var noteData:ChartNote;
+	var sustain:Bool;
+	var sustainLength:Float;
+	var sustainOffset:Float;
+	var time:Float;
+	var chainID:Int;
+	var order:Int;
 }

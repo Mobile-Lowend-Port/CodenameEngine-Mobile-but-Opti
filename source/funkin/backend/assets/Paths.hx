@@ -5,8 +5,10 @@ import flixel.graphics.frames.FlxAtlasFrames;
 import flixel.graphics.frames.FlxFramesCollection;
 import funkin.backend.assets.ModsFolder;
 import funkin.backend.scripting.Script;
+import funkin.backend.system.modules.FunkinCache;
 import haxe.io.Path;
 import lime.utils.AssetLibrary;
+import openfl.utils.AssetType;
 import openfl.utils.Assets as OpenFlAssets;
 import animate.FlxAnimateFrames;
 
@@ -17,11 +19,32 @@ class Paths
 	public static var assetsTree:AssetsLibraryList;
 
 	public static var tempFramesCache:Map<String, FlxFramesCollection> = [];
+	static var __preserveTempFramesOnce:Bool = false;
 
 	public static function init() {
 		FlxG.signals.preStateSwitch.add(function() {
+			if (__preserveTempFramesOnce) {
+				__preserveTempFramesOnce = false;
+				return;
+			}
 			tempFramesCache.clear();
 		});
+	}
+
+	public static inline function preserveTempFramesForNextStateSwitch():Void
+		__preserveTempFramesOnce = true;
+
+	public static function clearPlayStateTempCaches():Void {
+		__preserveTempFramesOnce = false;
+		tempFramesCache.clear();
+
+		if (FlxG.bitmap != null) {
+			FlxG.bitmap.clearCache();
+			FlxG.bitmap.clearUnused();
+		}
+
+		if (FunkinCache.instance != null)
+			FunkinCache.instance.clearSecondLayer();
 	}
 
 	public static inline function getPath(file:String, ?library:String) {
@@ -46,6 +69,32 @@ class Paths
 		if (returnedPath.toLowerCase() == fixedPath.toLowerCase()) returnedPath = fixedPath;
 		#end
 		return returnedPath;
+	}
+
+	static function cleanAssetID(path:String):String {
+		path = StringTools.replace(path, "\\", "/");
+		var separator = path.indexOf(":");
+		if (separator != -1)
+			path = path.substr(separator + 1);
+		return path;
+	}
+
+	static function resolveExistingAsset(path:String, ?type:AssetType):String {
+		if (path == null)
+			return null;
+
+		path = cleanAssetID(path);
+		if (OpenFlAssets.exists(path, type))
+			return path;
+
+		var lowerPath = path.toLowerCase();
+		for (asset in OpenFlAssets.list(type)) {
+			var cleanAsset = cleanAssetID(asset);
+			if (cleanAsset.toLowerCase() == lowerPath)
+				return cleanAsset;
+		}
+
+		return path;
 	}
 
 	public static inline function video(key:String, ?ext:String)
@@ -145,11 +194,20 @@ class Paths
 	 * @param font The font's path (if it's already passed as a font name, the same name will be returned)
 	 */
 	inline static public function getFontName(font:String) {
-		return OpenFlAssets.exists(font, FONT) ? OpenFlAssets.getFont(font).fontName : font;
+		return OpenFlAssets.exists(font, AssetType.FONT) ? OpenFlAssets.getFont(font).fontName : font;
 	}
 
-	public static inline function font(key:String) {
-		return getPath('fonts/$key');
+	public static function font(key:String) {
+		#if MOD_SUPPORT
+		var modPath = ModsFolder.getCurrentModAssetPath('fonts/$key');
+		if (modPath != null) {
+			modPath = resolveExistingAsset(modPath, AssetType.FONT);
+			if (OpenFlAssets.exists(modPath, AssetType.FONT))
+				return modPath;
+		}
+		#end
+
+		return resolveExistingAsset(getPath('fonts/$key'), AssetType.FONT);
 	}
 
 	public static inline function obj(key:String) {
@@ -194,7 +252,7 @@ class Paths
 		return FlxAtlasFrames.fromAseprite('$key.${ext != null ? ext : Flags.IMAGE_EXT}', '$key.json');
 
 	inline static public function getAssetsRoot():String
-		return  ModsFolder.currentModFolder != null ? '${ModsFolder.modsPath}${ModsFolder.currentModFolder}' : #if (sys && !mobile && TEST_BUILD) '${Main.pathBack}assets/' #else 'assets' #end;
+		return ModsFolder.getCurrentModRoot();
 
 	/**
 	 * Gets frames at specified path.

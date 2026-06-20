@@ -12,6 +12,8 @@ class NoteGroup extends FlxTypedGroup<Note> {
 	var i:Int = 0;
 	var __currentlyLooping:Bool = false;
 	var __time:Float = -1.0;
+	public var generatedStartIndex:Int = 0;
+	public var fixedSlots:Bool = false;
 
 	/**
 	 * How many milliseconds it should show a note before it should be hit
@@ -24,6 +26,28 @@ class NoteGroup extends FlxTypedGroup<Note> {
 	public inline function preallocate(len:Int) {
 		members = cast new haxe.ds.Vector<Note>(len);
 		length = len;
+		generatedStartIndex = 0;
+		fixedSlots = false;
+	}
+
+	public inline function preallocateLazy(len:Int) {
+		members = cast new haxe.ds.Vector<Note>(len);
+		length = len;
+		generatedStartIndex = len;
+		fixedSlots = true;
+	}
+
+	public inline function setGenerated(index:Int, note:Note) {
+		members[index] = note;
+		if (index < generatedStartIndex)
+			generatedStartIndex = index;
+		if (length < index + 1)
+			length = index + 1;
+	}
+
+	inline function trimTrailingNulls() {
+		while (length > generatedStartIndex && members[length - 1] == null)
+			length--;
 	}
 
 	/**
@@ -54,7 +78,7 @@ class NoteGroup extends FlxTypedGroup<Note> {
 		i = length-1;
 		__loopSprite = null;
 		__time = __getSongPos() + limit;
-		while(i >= 0) {
+		while(i >= generatedStartIndex) {
 			__loopSprite = members[i--];
 			if (__loopSprite == null || !__loopSprite.exists || !__loopSprite.active) continue;
 			if (__loopSprite.strumTime > __time) break;
@@ -72,7 +96,7 @@ class NoteGroup extends FlxTypedGroup<Note> {
 		i = length-1;
 		__loopSprite = null;
 		__time = __getSongPos() + limit;
-		while(i >= 0) {
+		while(i >= generatedStartIndex) {
 			__loopSprite = members[i--];
 			if (__loopSprite == null || !__loopSprite.exists || !__loopSprite.visible) continue;
 			if (__loopSprite.strumTime > __time) break;
@@ -98,7 +122,7 @@ class NoteGroup extends FlxTypedGroup<Note> {
 		var oldCur = __currentlyLooping;
 		__currentlyLooping = true;
 
-		while(i >= 0) {
+		while(i >= generatedStartIndex) {
 			__loopSprite = members[i--];
 			if (__loopSprite == null || !__loopSprite.exists) continue;
 			if (__loopSprite.strumTime > __time) break;
@@ -126,7 +150,12 @@ class NoteGroup extends FlxTypedGroup<Note> {
 		if (Splice && __currentlyLooping && i >= index)
 			i++;
 
-		if (Splice)
+		if (Splice && fixedSlots)
+		{
+			members[index] = null;
+			trimTrailingNulls();
+		}
+		else if (Splice)
 		{
 			members.splice(index, 1);
 			length--;

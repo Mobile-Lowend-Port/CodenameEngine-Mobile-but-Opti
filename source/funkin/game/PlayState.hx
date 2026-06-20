@@ -672,7 +672,7 @@ class PlayState extends MusicBeatState
 
 	@:dox(hide) override public function create()
 	{
-		Note.__customNoteTypeExists = [];
+		Note.clearRuntimeCaches();
 
 		// SCRIPTING & DATA INITIALIZATION
 		#if REGION
@@ -1140,7 +1140,9 @@ class PlayState extends MusicBeatState
 
 		instance = null;
 
-		Note.__customNoteTypeExists = [];
+		Note.clearRuntimeCaches();
+		Paths.clearPlayStateTempCaches();
+		funkin.backend.utils.MemoryUtil.requestClearMajor();
 	}
 
 	@:dox(hide) @:deprecated("scrollSpeedTween is deprecated, use eventsTween['scrollSpeed'] instead")
@@ -1188,7 +1190,7 @@ class PlayState extends MusicBeatState
 
 		var vocalsPath = Paths.voices(SONG.meta.name, difficulty, SONG.meta.vocalsSuffix);
 		if (SONG.meta.needsVoices && Assets.exists(vocalsPath))
-			vocals = FlxG.sound.load(Options.streamedVocals ? Assets.getMusic(vocalsPath) : vocalsPath);
+			vocals = FlxG.sound.load(Options.streamedVocals ? Assets.getMusic(vocalsPath) : Assets.getSound(vocalsPath));
 		else
 			vocals = new FlxSound();
 
@@ -1313,6 +1315,7 @@ class PlayState extends MusicBeatState
 		persistentUpdate = false;
 		persistentDraw = true;
 		paused = true;
+		funkin.backend.utils.VideoPauseUtil.pauseAllForGamePause();
 
 		// 1 / 1000 chance for Gitaroo Man easter egg
 		if (allowGitaroo && FlxG.random.bool(Flags.GITAROO_CHANCE))
@@ -1465,6 +1468,17 @@ class PlayState extends MusicBeatState
 						break;
 
 			if (isOffsync) resyncVocals();
+		}
+
+		if (generatedMusic) {
+			var noteBuildBudget = Flags.PLAYSTATE_NOTE_BUILD_BUDGET;
+			for (strumLine in strumLines.members) {
+				if (strumLine == null)
+					continue;
+				var built = strumLine.updateQueuedNoteGeneration(Conductor.songPosition, noteBuildBudget);
+				if (noteBuildBudget > 0)
+					noteBuildBudget -= built;
+			}
 		}
 
 		while(events.length > 0 && events.last().time <= Conductor.songPosition)
@@ -1838,7 +1852,7 @@ class PlayState extends MusicBeatState
 				registerSmoothTransition();
 
 				__loadSong(storyPlaylist[0], difficulty, storyVariations[0]);
-				FlxG.switchState(new PlayState());
+				switchToPlayState();
 			}
 		}
 		else if (chartingMode)
@@ -2295,6 +2309,14 @@ class PlayState extends MusicBeatState
 
 		SONG = Chart.parse(_name, _difficulty, _variation);
 		fromMods = SONG.fromMods;
+	}
+
+	public static function switchToPlayState(?skipTransition:Bool = true):Void {
+		if (chartingMode) {
+			FlxG.switchState(new PlayState());
+			return;
+		}
+		FlxG.switchState(new PlayStateLoadingState(skipTransition));
 	}
 }
 

@@ -26,7 +26,13 @@ class MobileUtil
 {
 	#if sys
 	public static inline function getAssetDirectory():String
-		return #if android haxe.io.Path.addTrailingSlash("/sdcard/Android/data/com.yoshman29.codenameengine/files") #elseif ios lime.system.System.documentsDirectory #else Sys.getCwd() #end;
+		return #if android Path.addTrailingSlash(AndroidContext.getExternalFilesDir()) #elseif ios lime.system.System.documentsDirectory #else Sys.getCwd() #end;
+
+	public static inline function getModsDirectory():String
+		return Path.addTrailingSlash(getDirectory() + "mods/");
+
+	public static inline function getAddonsDirectory():String
+		return Path.addTrailingSlash(getDirectory() + "addons/");
 
 	#if android
 	public static inline function getCustomStoragePath():String
@@ -66,11 +72,17 @@ class MobileUtil
 	// always force path due to haxe
 	public static var currentDirectory:String;
 	public static function initDirectory():String {
-		var daPath:String = '';
-		if (!FileSystem.exists(getStorageTypePath()))
-			File.saveContent(getStorageTypePath(), Options.storageType);
+		var fallbackPath:String = Path.addTrailingSlash(AndroidContext.getExternalFilesDir());
+		var daPath:String = fallbackPath;
+		var curStorageType:String = Options.storageType;
 
-		var curStorageType:String = File.getContent(getStorageTypePath());
+		try {
+			if (!FileSystem.exists(getStorageTypePath()))
+				File.saveContent(getStorageTypePath(), Options.storageType);
+			curStorageType = File.getContent(getStorageTypePath());
+		} catch (e:Dynamic) {
+			trace('Could not read storage type, using app-private external files dir: $e');
+		}
 
 		/* Put this there because I don't want to override original paths, also brokes the normal storage system */
 		for (line in getCustomStorageDirectories(true))
@@ -94,36 +106,21 @@ class MobileUtil
 			case 'EXTERNAL_MEDIA':
 				daPath = "/sdcard/Android/media/com.yoshman29.codenameengine";
 			case 'EXTERNAL_DATA':
-				daPath = "/sdcard/Android/data/com.yoshman29.codenameengine/files";
+				daPath = fallbackPath;
 			default: //technically not needed but here for safety -ArkoseLabs
-				if (daPath == null || daPath == '') daPath = "/sdcard/Android/data/com.yoshman29.codenameengine/files";
+				if (daPath == null || daPath == '') daPath = fallbackPath;
 		}
 		daPath = Path.addTrailingSlash(daPath);
+
+		if (!ensureDirectory(daPath)) {
+			trace('Could not create selected storage directory $daPath, falling back to $fallbackPath');
+			daPath = fallbackPath;
+			ensureDirectory(daPath);
+		}
+
 		currentDirectory = daPath;
-
-		try
-		{
-			if (!FileSystem.exists(MobileUtil.getAssetDirectory()))
-				FileSystem.createDirectory(MobileUtil.getAssetDirectory());
-		}
-		catch (e:Dynamic)
-		{
-			Application.current.window.alert("Looks like you doesn't have directory named\n" + MobileUtil.getAssetDirectory() +
-			"\nBut maybe this couldn't be right, android loves to give errors like this\nPress OK & let's see what happens\nCurrent Error You Got:\n" + e, "Warning!");
-			//lime.system.System.exit(1);
-		}
-
-		try
-		{
-			if (!FileSystem.exists(MobileUtil.getDirectory() + "mods/"))
-				FileSystem.createDirectory(MobileUtil.getDirectory() + "mods/");
-		}
-		catch (e:Dynamic)
-		{
-			Application.current.window.alert("Looks like you doesn't have directory named\n" + MobileUtil.getDirectory() + "mods/" + 
-			"\nBut maybe this couldn't be right, android loves to give errors like this\nPress OK & let's see what happens\nCurrent Error You Got:\n" + e, "Warning!");
-			//lime.system.System.exit(1);
-		}
+		ensureDirectory(getModsDirectory());
+		ensureDirectory(getAddonsDirectory());
 
 		return daPath;
 	}
@@ -133,18 +130,8 @@ class MobileUtil
 	 */
 	public static function getPermissions():Void
 	{
-		if (AndroidVersion.SDK_INT >= AndroidVersionCode.TIRAMISU)
-			AndroidPermissions.requestPermissions([
-				'READ_MEDIA_IMAGES',
-				'READ_MEDIA_VIDEO',
-				'READ_MEDIA_AUDIO',
-				'READ_MEDIA_VISUAL_USER_SELECTED'
-			]);
-		else
-			AndroidPermissions.requestPermissions(['READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE']);
-
-		if (!AndroidEnvironment.isExternalStorageManager())
-			AndroidSettings.requestSetting('MANAGE_APP_ALL_FILES_ACCESS_PERMISSION');
+		// Bundled APK assets and app-specific external files do not need Android
+		// storage/media permissions during normal gameplay.
 	}
 
 	public static var lastGettedPermission:Int;
@@ -207,6 +194,25 @@ class MobileUtil
 			else
 				trace('$fileName couldn\'t be saved. (${e.message})');
 	}
+
+	static function ensureDirectory(path:String):Bool {
+		try {
+			path = Path.addTrailingSlash(path);
+			if (FileSystem.exists(path))
+				return true;
+
+			var parent = Path.directory(path.substr(0, path.length - 1));
+			if (parent != null && parent != "" && parent != path && !FileSystem.exists(parent))
+				ensureDirectory(parent);
+
+			if (!FileSystem.exists(path))
+				FileSystem.createDirectory(path);
+			return FileSystem.exists(path);
+		} catch (e:Dynamic) {
+			trace('Could not create directory $path: $e');
+		}
+		return false;
+	}
 	#end
 
 	/**
@@ -226,6 +232,7 @@ class MobileUtil
 				}
 
 				if (!StringTools.startsWith(cleanPath, "assets/")) return false;
+				if (StringTools.startsWith(cleanPath, "assets/mods/")) return false;
 				if (folders == null) return true;
 
 				for (f in folders) {

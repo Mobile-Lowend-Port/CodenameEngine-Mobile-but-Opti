@@ -11,6 +11,7 @@ import flixel.util.FlxDestroyUtil;
 import flixel.util.FlxSpriteUtil;
 import flixel.graphics.FlxGraphic;
 import flixel.graphics.frames.FlxAtlasFrames;
+import funkin.backend.assets.ModsFolder;
 import openfl.utils.Assets;
 import openfl.display.BitmapData;
 #if sys
@@ -30,20 +31,32 @@ class FunkinJoyStick extends JoyStick {
 			graphic = MobileConfig.mobileFolderPath + graphic;
 
 		#if MOD_SUPPORT
-		final moddyFolder:String = (ModsFolder.currentModFolder != null
-			&& ModsFolder.currentModFolder != "default") ? '${ModsFolder.modsPath}${ModsFolder.currentModFolder}/mobile/' : '';
+		final moddyFolder:String = ModsFolder.getCurrentModAssetPath('mobile');
 		#end
 
 		#if MOD_SUPPORT
 		var xmlGraphicExists:Bool = (FileSystem.exists('$graphic.xml') && FileSystem.exists('$graphic.png'));
-		var modGraphicXml:String = moddyFolder + '$fixedModPath.xml';
-		var modGraphicPng:String = moddyFolder + '$fixedModPath.png';
-		if (FileSystem.exists(modGraphicXml) && FileSystem.exists(modGraphicPng))
-			object.loadGraphic(FlxGraphic.fromFrame(FlxAtlasFrames.fromSparrow(BitmapData.fromBytes(File.getBytes(modGraphicPng)), File.getContent(modGraphicXml)).getByName(img)));
+		var modGraphicXml:String = moddyFolder != null ? '$moddyFolder/$fixedModPath.xml' : null;
+		var modGraphicPng:String = moddyFolder != null ? '$moddyFolder/$fixedModPath.png' : null;
+		if (modGraphicXml != null && modGraphicPng != null && ModsFolder.assetPathExists(modGraphicXml) && ModsFolder.assetPathExists(modGraphicPng)) {
+			if (FileSystem.exists(modGraphicXml) && FileSystem.exists(modGraphicPng))
+				object.loadGraphic(FlxGraphic.fromFrame(FlxAtlasFrames.fromSparrow(BitmapData.fromBytes(File.getBytes(modGraphicPng)), File.getContent(modGraphicXml)).getByName(img)));
+			else
+				object.loadGraphic(FlxGraphic.fromFrame(FlxAtlasFrames.fromSparrow(Assets.getBitmapData(modGraphicPng), Assets.getText(modGraphicXml)).getByName(img)));
+		}
 		else if (xmlGraphicExists)
 			object.loadGraphic(FlxGraphic.fromFrame(FlxAtlasFrames.fromSparrow(BitmapData.fromBytes(File.getBytes('$graphic.png')), File.getContent('$graphic.xml')).getByName(img)));
-		else #end
-			object.loadGraphic(FlxGraphic.fromFrame(FlxAtlasFrames.fromSparrow(Assets.getBitmapData('$graphic.png'), Assets.getText('$graphic.xml')).getByName(img)));
+		else #end {
+			var assetGraphic:String = '$graphic.png';
+			var assetXml:String = '$graphic.xml';
+			var embeddedGraphic:String = 'assets/$assetGraphic';
+			var embeddedXml:String = 'assets/$assetXml';
+			if (!Assets.exists(assetGraphic) && Assets.exists(embeddedGraphic)) {
+				assetGraphic = embeddedGraphic;
+				assetXml = embeddedXml;
+			}
+			object.loadGraphic(FlxGraphic.fromFrame(FlxAtlasFrames.fromSparrow(Assets.getBitmapData(assetGraphic), Assets.getText(assetXml)).getByName(img)));
+		}
 	}
 
 	public function new(x:Float = 0, y:Float = 0, ?graphic:String, ?onMove:Float->Float->Float->String->Void)

@@ -103,6 +103,7 @@ class Note extends FlxSprite
 	@:dox(hide) public var __strumCameras:Array<FlxCamera> = null;
 	@:dox(hide) public var __strum:Strum = null;
 	@:dox(hide) public var __noteAngle:Float = 0;
+	@:dox(hide) public var __baseAlpha:Float = 1;
 
 	private function get_noteType() {
 		if (PlayState.instance == null) return null;
@@ -112,6 +113,7 @@ class Note extends FlxSprite
 	public static var swagWidth:Float = 160 * 0.7; // TODO: remove this
 
 	private static var __customNoteTypeExists:Map<String, Bool> = [];
+	private static var __defaultAnimationCache:Map<String, FlxSprite> = [];
 
 	public var animSuffix:String = null;
 
@@ -122,6 +124,28 @@ class Note extends FlxSprite
 		if (__customNoteTypeExists.exists(path))
 			return __customNoteTypeExists[path];
 		return __customNoteTypeExists[path] = Assets.exists(path);
+	}
+
+	public static function preloadNoteType(noteType:String, keyCount:Int = 4):String {
+		var noteSprite = "game/notes/default";
+		if (noteType != null && noteType != "") {
+			var customType = Paths.image('game/notes/$noteType');
+			if (customTypePathExists(customType))
+				noteSprite = 'game/notes/$noteType';
+		}
+		preloadNoteSprite(noteSprite, keyCount);
+		return noteSprite;
+	}
+
+	public static function preloadNoteSprite(noteSprite:String, keyCount:Int = 4) {
+		if (noteSprite == null || noteSprite == "")
+			noteSprite = "game/notes/default";
+		if (keyCount < 1)
+			keyCount = 1;
+
+		Paths.getFrames(noteSprite);
+		for (i in 0...keyCount)
+			getDefaultAnimationTemplate(noteSprite, i % 4);
 	}
 
 	static var DEFAULT_FIELDS:Array<String> = ["time", "id", "type", "sLen"];
@@ -155,9 +179,10 @@ class Note extends FlxSprite
 		this.strumTime = noteData.time.getDefault(0) + sustainOffset;
 		this.noteData = noteData.id.getDefault(0);
 
-		var customType = Paths.image('game/notes/${this.noteType}');
-		var event = EventManager.get(NoteCreationEvent).recycle(this, strumID, this.noteType, noteTypeID, PlayState.instance.strumLines.members.indexOf(strumLine), mustPress,
-			(this.noteType != null && customTypePathExists(customType)) ? 'game/notes/${this.noteType}' : 'game/notes/default', @:privateAccess strumLine.strumScale * Flags.DEFAULT_NOTE_SCALE, animSuffix);
+		var noteTypeName = this.noteType;
+		var customType = noteTypeName == null ? null : Paths.image('game/notes/$noteTypeName');
+		var event = EventManager.get(NoteCreationEvent).recycle(this, strumID, noteTypeName, noteTypeID, strumLine.ID, mustPress,
+			(noteTypeName != null && customTypePathExists(customType)) ? 'game/notes/$noteTypeName' : 'game/notes/default', @:privateAccess strumLine.strumScale * Flags.DEFAULT_NOTE_SCALE, animSuffix);
 
 		if (PlayState.instance != null)
 			event = PlayState.instance.gameAndCharsEvent("onNoteCreation", event);
@@ -169,27 +194,7 @@ class Note extends FlxSprite
 				// case "My Custom Note Type": // hardcoding note types
 				default:
 					frames = Paths.getFrames(event.noteSprite);
-
-					switch(event.strumID % 4) {
-						case 0:
-							animation.addByPrefix('scroll', 'purple0');
-							animation.addByPrefix('hold', 'purple hold piece');
-							animation.addByPrefix("holdend", "pruple end hold");
-							if (animation.exists("holdend") != true) // null or false
-								animation.addByPrefix('holdend', 'purple hold end');
-						case 1:
-							animation.addByPrefix('scroll', 'blue0');
-							animation.addByPrefix('hold', 'blue hold piece');
-							animation.addByPrefix('holdend', 'blue hold end');
-						case 2:
-							animation.addByPrefix('scroll', 'green0');
-							animation.addByPrefix('hold', 'green hold piece');
-							animation.addByPrefix('holdend', 'green hold end');
-						case 3:
-							animation.addByPrefix('scroll', 'red0');
-							animation.addByPrefix('hold', 'red hold piece');
-							animation.addByPrefix('holdend', 'red hold end');
-					}
+					animation.copyFrom(getDefaultAnimationTemplate(event.noteSprite, event.strumID % 4).animation);
 
 					scale.set(event.noteScale, event.noteScale);
 					antialiasing = true;
@@ -218,6 +223,51 @@ class Note extends FlxSprite
 			PlayState.instance.splashHandler.getSplashGroup(splash);
 			PlayState.instance.gameAndCharsEvent("onPostNoteCreation", event);
 		}
+
+		__baseAlpha = alpha;
+	}
+
+	public inline function applyHudAlpha(hudAlpha:Float):Void
+		alpha = __baseAlpha * hudAlpha;
+
+	static function getDefaultAnimationTemplate(noteSprite:String, strumID:Int):FlxSprite {
+		var cacheKey = '$noteSprite:$strumID';
+		var template = __defaultAnimationCache.get(cacheKey);
+		if (template != null)
+			return template;
+
+		template = new FlxSprite();
+		template.frames = Paths.getFrames(noteSprite);
+		switch(strumID) {
+			case 0:
+				template.animation.addByPrefix('scroll', 'purple0');
+				template.animation.addByPrefix('hold', 'purple hold piece');
+				template.animation.addByPrefix("holdend", "pruple end hold");
+				if (template.animation.exists("holdend") != true)
+					template.animation.addByPrefix('holdend', 'purple hold end');
+			case 1:
+				template.animation.addByPrefix('scroll', 'blue0');
+				template.animation.addByPrefix('hold', 'blue hold piece');
+				template.animation.addByPrefix('holdend', 'blue hold end');
+			case 2:
+				template.animation.addByPrefix('scroll', 'green0');
+				template.animation.addByPrefix('hold', 'green hold piece');
+				template.animation.addByPrefix('holdend', 'green hold end');
+			case 3:
+				template.animation.addByPrefix('scroll', 'red0');
+				template.animation.addByPrefix('hold', 'red hold piece');
+				template.animation.addByPrefix('holdend', 'red hold end');
+		}
+		__defaultAnimationCache.set(cacheKey, template);
+		return template;
+	}
+
+	public static function clearRuntimeCaches() {
+		__customNoteTypeExists = [];
+		for (template in __defaultAnimationCache)
+			if (template != null)
+				template.destroy();
+		__defaultAnimationCache = [];
 	}
 
 	public var lastScrollSpeed:Null<Float> = null;

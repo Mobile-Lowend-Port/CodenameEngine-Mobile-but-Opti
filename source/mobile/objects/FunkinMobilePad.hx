@@ -7,6 +7,11 @@ import openfl.display.BitmapData;
 import openfl.utils.Assets;
 import flixel.math.FlxPoint;
 import flixel.util.FlxColor;
+import funkin.backend.assets.ModsFolder;
+#if sys
+import sys.io.File;
+import sys.FileSystem;
+#end
 
 class FunkinMobilePad extends MobilePad {
 	public var curDPadMode(default, null):String = "NONE";
@@ -21,22 +26,23 @@ class FunkinMobilePad extends MobilePad {
 		var frames:FlxGraphic;
 		var buttonLabelGraphicPath:String = "";
 		#if MOD_SUPPORT
-		final moddyFolder:String = (ModsFolder.currentModFolder != null
-			&& ModsFolder.currentModFolder != "default") ? '${ModsFolder.modsPath}${ModsFolder.currentModFolder}/mobile' : '';
+		final moddyFolder:String = ModsFolder.getCurrentModAssetPath('mobile');
 		#end
 
 		final defaultPath:String = 'assets/mobile/MobilePad/Textures/$framePath.png';
 		#if MOD_SUPPORT
-		final moddyPath:String = '$moddyFolder/MobilePad/Textures/$framePath.png';
-		if (FileSystem.exists(moddyPath))
+		final moddyPath:String = moddyFolder != null ? '$moddyFolder/MobilePad/Textures/$framePath.png' : null;
+		if (moddyPath != null && ModsFolder.assetPathExists(moddyPath))
 			buttonLabelGraphicPath = moddyPath;
 		else
 		#end
 			buttonLabelGraphicPath = defaultPath;
 
+		#if sys
 		if (FileSystem.exists(buttonLabelGraphicPath))
 			frames = FlxGraphic.fromBitmapData(BitmapData.fromBytes(File.getBytes(buttonLabelGraphicPath)));
 		else
+		#end
 			frames = FlxGraphic.fromBitmapData(Assets.getBitmapData(buttonLabelGraphicPath));
 
 		var button = new MobileButton(x, y, returned);
@@ -54,7 +60,7 @@ class FunkinMobilePad extends MobilePad {
 		button.antialiasing = Options.antialiasing;
 		button.tag = framePath.toUpperCase();
 
-		if (ColorS != -1) button.color = ColorS;
+		button.color = FlxColor.WHITE;
 		return button;
 	}
 }

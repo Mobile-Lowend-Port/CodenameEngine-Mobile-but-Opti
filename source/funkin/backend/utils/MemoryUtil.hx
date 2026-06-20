@@ -1,5 +1,6 @@
 package funkin.backend.utils;
 
+import flixel.FlxG;
 import funkin.backend.utils.native.HiddenProcess;
 #if cpp
 import cpp.vm.Gc;
@@ -22,6 +23,9 @@ using StringTools;
 **/
 final class MemoryUtil {
 	public static var disableCount:Int = 0;
+	static var __pendingMajor:Bool = false;
+	static var __pendingMinor:Bool = false;
+	static var __majorDelay:Float = 0;
 
 	public static function askDisable() {
 		disableCount++;
@@ -40,10 +44,47 @@ final class MemoryUtil {
 
 	public static function init() {}
 
+	public static function update(?elapsed:Float) {
+		if (!__pendingMajor && !__pendingMinor) return;
+		if (elapsed == null) elapsed = FlxG.elapsed;
+		if (__majorDelay > 0) {
+			__majorDelay -= elapsed;
+			return;
+		}
+		if (__isGameplayState()) return;
+
+		if (__pendingMajor) {
+			__pendingMajor = false;
+			clearMajor(true);
+		}
+		else if (__pendingMinor) {
+			__pendingMinor = false;
+			clearMinor(true);
+		}
+	}
+
+	public static function requestClearMinor() {
+		if (__isGameplayState()) {
+			__pendingMinor = true;
+			return;
+		}
+		clearMinor(true);
+	}
+
+	public static function requestClearMajor(?delay:Float = 0.2) {
+		__pendingMajor = true;
+		__majorDelay = Math.max(__majorDelay, delay);
+		update(0);
+	}
+
 	/**
 	 * Does a minor garbage collection.
 	 */
-	public static function clearMinor() {
+	public static function clearMinor(force:Bool = false) {
+		if (!force && __isGameplayState()) {
+			requestClearMinor();
+			return;
+		}
 		#if (cpp || java || neko)
 		Gc.run(false);
 		#end
@@ -52,7 +93,11 @@ final class MemoryUtil {
 	/**
 	 * Does a full garbage collection.
 	 */
-	public static function clearMajor() {
+	public static function clearMajor(force:Bool = false) {
+		if (!force && __isGameplayState()) {
+			requestClearMajor();
+			return;
+		}
 		#if cpp
 		Gc.run(true);
 		Gc.compact();
@@ -61,6 +106,11 @@ final class MemoryUtil {
 		#elseif (java || neko)
 		Gc.run(true);
 		#end
+	}
+
+	static function __isGameplayState():Bool {
+		var state = FlxG.state;
+		return (state is funkin.game.PlayState) || (state is funkin.game.PlayStateLoadingState);
 	}
 
 	/**

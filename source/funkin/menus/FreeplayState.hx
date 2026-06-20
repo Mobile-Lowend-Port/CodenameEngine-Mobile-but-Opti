@@ -349,7 +349,7 @@ class FreeplayState extends MusicBeatState
 		Options.freeplayLastVariation = curSong.variant;
 
 		PlayState.loadSong(event.song, event.difficulty, event.variant, event.opponentMode, event.coopMode);
-		FlxG.switchState(new PlayState());
+		PlayState.switchToPlayState();
 	}
 
 	public function convertChart() {
