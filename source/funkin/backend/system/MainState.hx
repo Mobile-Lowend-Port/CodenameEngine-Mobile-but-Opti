@@ -46,8 +46,14 @@ class MainState extends FlxState {
 		Paths.assetsTree.reset();
 
 		#if MOD_SUPPORT
+		inline function fileExists(path:String):Bool
+			return try FileSystem.exists(path) catch (e:Dynamic) false;
+
 		inline function isDirectory(path:String):Bool
-			return FileSystem.exists(path) && FileSystem.isDirectory(path);
+			return try FileSystem.exists(path) && FileSystem.isDirectory(path) catch (e:Dynamic) false;
+
+		inline function readDirectory(path:String):Array<String>
+			return try FileSystem.readDirectory(path) catch (e:Dynamic) null;
 
 		inline function ltrim(str:String, prefix:String):String
 			return str.substr(prefix.length).ltrim();
@@ -75,28 +81,29 @@ class MainState extends FlxState {
 		// 
 		if (!isEmbeddedMod) {
 			for (ext in Flags.ALLOWED_ZIP_EXTENSIONS) {
-				if (FileSystem.exists(quick_modsPath+"."+ext)) isZipMod = true;
-				if (FileSystem.exists(quick_modsPath+"/cnemod."+ext)) isCneMod = true;
+				if (fileExists(quick_modsPath+"."+ext)) isZipMod = true;
+				if (fileExists(quick_modsPath+"/cnemod."+ext)) isCneMod = true;
 				if (isZipMod && isCneMod) break;
 			}
 		}
 		
-		// We get the addons folder from relative space (`./`) and then our mod's addons.
-		var addonPaths = [
-			ModsFolder.addonsPath,
-			// So to check the mod's addons folder, we need to decompress it. Which is impossible* in this stage of the loading library process.
-			// TODO: Write a function when the library is loaded to decompress the contents and then load the libraries :)
-			( (ModsFolder.currentModFolder != null && !isZipMod && !isEmbeddedMod) ?
-				quick_modsPath + "/addons/" : null
-			)
-		];
+		// We get the addons folders from all supported external locations and then our mod's addons.
+		var addonPaths = ModsFolder.getAddonSearchPaths();
+		// So to check the mod's addons folder, we need to decompress it. Which is impossible* in this stage of the loading library process.
+		// TODO: Write a function when the library is loaded to decompress the contents and then load the libraries :)
+		if (ModsFolder.currentModFolder != null && !isZipMod && !isEmbeddedMod)
+			addonPaths.push(quick_modsPath + "/addons/");
 
 		for (path in addonPaths) {
 			if (path == null) continue;
 			if (!isDirectory(path)) continue;
 
-			for (addon in FileSystem.readDirectory(path)) {
-				if (!FileSystem.isDirectory(path + addon)) {
+			var addons = readDirectory(path);
+			if (addons == null)
+				continue;
+
+			for (addon in addons) {
+				if (!isDirectory(path + addon)) {
 					if (Flags.ALLOWED_ZIP_EXTENSIONS.contains(Path.extension(addon))) addon = Path.withoutExtension(addon);
 					else continue;
 				}

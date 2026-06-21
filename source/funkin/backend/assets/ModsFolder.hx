@@ -13,6 +13,7 @@ import openfl.utils.Assets;
 using StringTools;
 #if MOD_SUPPORT
 import sys.FileSystem;
+import sys.io.File;
 #end
 
 
@@ -37,6 +38,9 @@ class ModsFolder {
 	 */
 	public static var addonsPath:String = #if mobile MobileUtil.getAddonsDirectory() #else Sys.getCwd() + "addons/" #end;
 
+	public static var extraModsPaths:Array<String> = [];
+	public static var extraAddonsPaths:Array<String> = [];
+
 	/**
 	 * If accessing a file as assets/data/global/LIB_mymod.hx should redirect to mymod:assets/data/global.hx
 	 */
@@ -51,9 +55,8 @@ class ModsFolder {
 		return mod == null || mod == "" || mod == "default";
 	}
 
-	public static function isEmbeddedMod(mod:String):Bool {
-		return getEmbeddedModAssetRoot(mod) != null;
-	}
+	public static function isEmbeddedMod(mod:String):Bool
+		return getFilesystemModRoot(mod) == null && getEmbeddedModAssetRoot(mod) != null;
 
 	private static function cleanAssetPath(path:String):String {
 		var cleanPath = path;
@@ -70,11 +73,42 @@ class ModsFolder {
 		return path;
 	}
 
+	private static function normalizeDirectory(path:String):String {
+		path = StringTools.replace(path, "\\", "/");
+		if (!path.endsWith("/"))
+			path += "/";
+		return path;
+	}
+
 	private static function trimRelativePath(path:String):String {
 		path = StringTools.replace(path, "\\", "/");
 		while (path.startsWith("/"))
 			path = path.substr(1);
 		return path;
+	}
+
+	static function filesystemExists(path:String):Bool {
+		#if MOD_SUPPORT
+		return try FileSystem.exists(path) catch (e:Dynamic) false;
+		#else
+		return false;
+		#end
+	}
+
+	static function filesystemIsDirectory(path:String):Bool {
+		#if MOD_SUPPORT
+		return try FileSystem.exists(path) && FileSystem.isDirectory(path) catch (e:Dynamic) false;
+		#else
+		return false;
+		#end
+	}
+
+	static function filesystemReadDirectory(path:String):Array<String> {
+		#if MOD_SUPPORT
+		return try FileSystem.readDirectory(path) catch (e:Dynamic) null;
+		#else
+		return null;
+		#end
 	}
 
 	public static function getEmbeddedModAssetRoot(mod:String):String {
@@ -110,6 +144,10 @@ class ModsFolder {
 		if (isDefaultMod(currentModFolder))
 			return #if (sys && !mobile && TEST_BUILD) '${Main.pathBack}assets/' #else 'assets' #end;
 
+		var filesystemRoot = getFilesystemModRoot(currentModFolder);
+		if (filesystemRoot != null)
+			return filesystemRoot;
+
 		var embeddedRoot = getEmbeddedModAssetRoot(currentModFolder);
 		if (embeddedRoot != null)
 			return embeddedRoot;
@@ -121,9 +159,12 @@ class ModsFolder {
 		if (isDefaultMod(mod))
 			return null;
 
-		var root = getEmbeddedModAssetRoot(mod);
-		if (root == null)
-			root = normalizePath('${modsPath}${mod}');
+		var root = getFilesystemModRoot(mod);
+		if (root == null) {
+			root = getEmbeddedModAssetRoot(mod);
+			if (root == null)
+				root = normalizePath('${modsPath}${mod}');
+		}
 
 		if (relativePath == null || relativePath == "")
 			return root;
@@ -141,7 +182,7 @@ class ModsFolder {
 		path = normalizePath(path);
 
 		#if MOD_SUPPORT
-		if (FileSystem.exists(path))
+		if (filesystemExists(path))
 			return true;
 		#end
 
@@ -158,18 +199,107 @@ class ModsFolder {
 		return false;
 	}
 
+	public static function getModSearchPaths():Array<String> {
+		refreshExtraSearchPaths();
+
+		var paths:Array<String> = [];
+		function addPath(path:String):Void {
+			path = normalizeDirectory(path);
+			if (!paths.contains(path))
+				paths.push(path);
+		}
+
+		addPath(modsPath);
+		for (path in extraModsPaths)
+			addPath(path);
+		return paths;
+	}
+
+	public static function getAddonSearchPaths():Array<String> {
+		refreshExtraSearchPaths();
+
+		var paths:Array<String> = [];
+		function addPath(path:String):Void {
+			path = normalizeDirectory(path);
+			if (!paths.contains(path))
+				paths.push(path);
+		}
+
+		addPath(addonsPath);
+		for (path in extraAddonsPaths)
+			addPath(path);
+		return paths;
+	}
+
+	public static function getFilesystemModRoot(mod:String):String {
+		if (isDefaultMod(mod))
+			return null;
+
+		#if MOD_SUPPORT
+		for (root in getModSearchPaths()) {
+			var modRoot = normalizePath(root + mod);
+			if (filesystemExists(modRoot))
+				return modRoot;
+
+			for (ext in Flags.ALLOWED_ZIP_EXTENSIONS) {
+				if (filesystemExists('$modRoot.$ext'))
+					return modRoot;
+			}
+		}
+		#end
+
+		return null;
+	}
+
+	public static function getAutoloadMod():String {
+		#if MOD_SUPPORT
+		for (root in getModSearchPaths()) {
+			var autoloadPath = normalizePath(root + "autoload.txt");
+			if (filesystemExists(autoloadPath)) {
+				try return File.getContent(autoloadPath).trim()
+				catch (e:Dynamic) Logs.warn('Could not read autoload file "$autoloadPath": ${Std.string(e)}');
+			}
+		}
+		#end
+
+		if (Assets.exists("assets/mods/autoload.txt"))
+			return Assets.getText("assets/mods/autoload.txt").trim();
+		if (Assets.exists("mods/autoload.txt"))
+			return Assets.getText("mods/autoload.txt").trim();
+
+		return null;
+	}
+
+	static function refreshExtraSearchPaths():Void {
+		#if mobile
+		extraModsPaths = [];
+		extraAddonsPaths = [];
+
+		for (root in MobileUtil.getModSearchDirectories()) {
+			var mods = normalizeDirectory(root + "mods/");
+			var addons = normalizeDirectory(root + "addons/");
+
+			if (mods != normalizeDirectory(modsPath) && !extraModsPaths.contains(mods))
+				extraModsPaths.push(mods);
+			if (addons != normalizeDirectory(addonsPath) && !extraAddonsPaths.contains(addons))
+				extraAddonsPaths.push(addons);
+		}
+		#end
+	}
+
 	/**
 	 * Initializes `mods` folder.
 	 */
 	public static function init() {
+		refreshExtraSearchPaths();
 		try {
-			if (!FileSystem.exists(modsPath)) FileSystem.createDirectory(modsPath);
+			if (!filesystemExists(modsPath)) FileSystem.createDirectory(modsPath);
 		} catch (e:Dynamic) {
 			Logs.warn('Could not create mods folder "$modsPath": ${Std.string(e)}');
 		}
 
 		try {
-			if (!FileSystem.exists(addonsPath)) FileSystem.createDirectory(addonsPath);
+			if (!filesystemExists(addonsPath)) FileSystem.createDirectory(addonsPath);
 		} catch (e:Dynamic) {
 			Logs.warn('Could not create addons folder "$addonsPath": ${Std.string(e)}');
 		}
@@ -220,11 +350,11 @@ class ModsFolder {
 		}
 
 		for (ext in Flags.ALLOWED_ZIP_EXTENSIONS) {
-			if (!FileSystem.exists('$path.$ext')) continue;
+			if (!filesystemExists('$path.$ext')) continue;
 			return loadLibraryFromZip('$path'.toLowerCase(), '$path.$ext', force, modName);
 		}
 
-		if (FileSystem.exists(path))
+		if (filesystemExists(path))
 			return loadLibraryFromFolder('$path'.toLowerCase(), '$path', force, modName);
 
 		var embeddedRoot = getEmbeddedModAssetRoot(modName);
@@ -241,27 +371,26 @@ class ModsFolder {
 	public static function getModsList():Array<String> {
 		var mods:Array<String> = [];
 		#if MOD_SUPPORT
-		try {
-			if (FileSystem.exists(modsPath)) {
-				final modsList:Array<String> = FileSystem.readDirectory(modsPath);
+		for (modsPath in getModSearchPaths()) {
+			if (!filesystemExists(modsPath))
+				continue;
 
-				if (modsList != null) {
-					for (modFolder in modsList) {
-						var modName = modFolder;
+			final modsList:Array<String> = filesystemReadDirectory(modsPath);
 
-						if (!FileSystem.isDirectory(modsPath + modFolder)) {
-							if (!Flags.ALLOWED_ZIP_EXTENSIONS.contains(Path.extension(modFolder)))
-								continue;
-							modName = Path.withoutExtension(modFolder);
-						}
+			if (modsList != null) {
+				for (modFolder in modsList) {
+					var modName = modFolder;
 
-						if (!mods.contains(modName))
-							mods.push(modName);
+					if (!filesystemIsDirectory(modsPath + modFolder)) {
+						if (!Flags.ALLOWED_ZIP_EXTENSIONS.contains(Path.extension(modFolder)))
+							continue;
+						modName = Path.withoutExtension(modFolder);
 					}
+
+					if (!mods.contains(modName))
+						mods.push(modName);
 				}
 			}
-		} catch (e:Dynamic) {
-			Logs.warn('Could not scan mods folder "$modsPath": ${Std.string(e)}');
 		}
 
 		for (asset in Assets.list()) {

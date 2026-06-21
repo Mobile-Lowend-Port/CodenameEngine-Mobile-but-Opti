@@ -34,6 +34,38 @@ class MobileUtil
 	public static inline function getAddonsDirectory():String
 		return Path.addTrailingSlash(getDirectory() + "addons/");
 
+	public static function getModSearchDirectories():Array<String>
+	{
+		var dirs:Array<String> = [];
+		function addDir(path:String):Void
+		{
+			if (path == null || path == "")
+				return;
+			path = Path.addTrailingSlash(path.replace("\\", "/"));
+			if (!dirs.contains(path))
+				dirs.push(path);
+		}
+
+		#if android
+		addDir(getDirectory());
+		try addDir(AndroidContext.getExternalFilesDir()) catch (e:Dynamic) {}
+		addDir("/sdcard/.CodenameEngine/");
+		addDir("/sdcard/Android/media/com.yoshman29.codenameengine/");
+		for (line in getCustomStorageDirectories(true))
+		{
+			if (line == null || line == "")
+				continue;
+			var data = line.split("|");
+			if (data.length > 1)
+				addDir(data[1]);
+		}
+		#else
+		addDir(getDirectory());
+		#end
+
+		return dirs;
+	}
+
 	#if android
 	public static inline function getCustomStoragePath():String
 		return AndroidContext.getExternalFilesDir() + '/storageModes.json';
